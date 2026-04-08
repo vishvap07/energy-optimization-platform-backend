@@ -1,0 +1,62 @@
+﻿Collecting Django==4.2.9 (from -r requirements.txt (line 1))
+  Using cached Django-4.2.9-py3-none-any.whl.metadata (4.2 kB)
+Collecting djangorestframework==3.14.0 (from -r requirements.txt (line 2))
+  Using cached djangorestframework-3.14.0-py3-none-any.whl.metadata (10 kB)
+Collecting djangorestframework-simplejwt==5.3.1 (from -r requirements.txt (line 3))
+  Using cached djangorestframework_simplejwt-5.3.1-py3-none-any.whl.metadata (4.3 kB)
+Collecting django-cors-headers==4.3.1 (from -r requirements.txt (line 4))
+  Using cached django_cors_headers-4.3.1-py3-none-any.whl.metadata (16 kB)
+Collecting psycopg2-binary==2.9.9 (from -r requirements.txt (line 5))
+  Using cached psycopg2_binary-2.9.9-cp312-cp312-win_amd64.whl.metadata (4.6 kB)
+Collecting python-dotenv==1.0.1 (from -r requirements.txt (line 6))
+  Using cached python_dotenv-1.0.1-py3-none-any.whl.metadata (23 kB)
+pip : ERROR: Ignored 
+the following versions 
+that require a 
+different python 
+version: 4.4.0 
+Requires-Python 
+>=3.6,<3.9
+At line:1 char:1
++ pip install -r 
+requirements.txt > 
+pip_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (ERROR: Ignore   
+ d ...thon >=3.6,<3    
+.9:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+ERROR: Could not find 
+a version that 
+satisfies the 
+requirement 
+tensorflow==2.15.0 
+(from versions: 
+2.16.0rc0, 2.16.1, 
+2.16.2, 2.17.0rc0, 
+2.17.0rc1, 2.17.0, 
+2.17.1, 2.18.0rc0, 
+2.18.0rc1, 2.18.0rc2, 
+2.18.0, 2.18.1, 
+2.19.0rc0, 2.19.0, 
+2.19.1, 2.20.0rc0, 
+2.20.0, 2.21.0rc0, 
+2.21.0rc1, 2.21.0)
+ERROR: No matching 
+distribution found for 
+tensorflow==2.15.0
+
+[notice] A new release 
+of pip is available: 
+24.0 -> 26.0.1
+[notice] To update, 
+run: python.exe -m pip 
+install --upgrade pip

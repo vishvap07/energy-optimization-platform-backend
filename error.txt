@@ -1,0 +1,36 @@
+Creating test database for alias 'default'...
+....WARNING 2026-03-20 08:15:45,155 log Unauthorized: /api/energy/analytics
+....WARNING 2026-03-20 08:15:45,423 log Not Found: /api/chatbot/query/
+FWARNING 2026-03-20 08:15:45,663 log Not Found: /api/chatbot/query/
+FWARNING 2026-03-20 08:15:45,914 log Not Found: /api/chatbot/query/
+F..
+======================================================================
+FAIL: test_basic_response (apps.analytics.tests.ChatbotTest.test_basic_response)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\vishv\.gemini\antigravity\scratch\energy-optimization-platform\backend\apps\analytics\tests.py", line 116, in test_basic_response
+    self.assertEqual(resp.status_code, 200)
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_empty_message (apps.analytics.tests.ChatbotTest.test_empty_message)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\vishv\.gemini\antigravity\scratch\energy-optimization-platform\backend\apps\analytics\tests.py", line 136, in test_empty_message
+    self.assertEqual(resp.status_code, 400)
+AssertionError: 404 != 400
+
+======================================================================
+FAIL: test_kwh_comes_from_db (apps.analytics.tests.ChatbotTest.test_kwh_comes_from_db)
+When DB has data, chatbot response should contain the real kWh value.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\vishv\.gemini\antigravity\scratch\energy-optimization-platform\backend\apps\analytics\tests.py", line 128, in test_kwh_comes_from_db
+    self.assertEqual(resp.status_code, 200)
+AssertionError: 404 != 200
+
+----------------------------------------------------------------------
+Ran 13 tests in 2.474s
+
+FAILED (failures=3)
+Destroying test database for alias 'default'...
