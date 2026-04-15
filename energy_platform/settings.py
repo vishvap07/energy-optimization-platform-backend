@@ -90,16 +90,39 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'energy_platform.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': os.environ.get('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
-        'USER': os.environ.get('DB_USER', ''),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', ''),
-        'PORT': os.environ.get('DB_PORT', ''),
+import dj_database_url
+
+_db_url = os.environ.get('DATABASE_URL')
+_db_engine = os.environ.get('DB_ENGINE', '')
+
+if _db_url:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=_db_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+elif _db_engine.startswith(('postgres://', 'postgresql://', 'mysql://', 'sqlite://')):
+    # Provide a fallback just in case the connection string was passed via DB_ENGINE
+    DATABASES = {
+        'default': dj_database_url.parse(
+            _db_engine,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': _db_engine or 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
+            'USER': os.environ.get('DB_USER', ''),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', ''),
+            'PORT': os.environ.get('DB_PORT', ''),
+        }
+    }
 
 AUTH_USER_MODEL = 'authentication.User'
 
