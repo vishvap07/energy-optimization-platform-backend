@@ -33,7 +33,7 @@ ML_SCALER_PATH = str(PROJECT_ROOT / 'ml_models' / 'saved_models' / 'scaler.pkl')
 ML_CSV_PATH = str(PROJECT_ROOT / 'demo_energy_data.csv')
 
 # Hugging Face Space Integration
-HF_SPACE_URL = os.environ.get('HF_SPACE_URL', 'https://vishva1574-energyforecasting.hf.space')
+HF_SPACE_ID = os.environ.get('HF_SPACE_ID', 'Vishva1574/EnergyForecasting')
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-energy-platform-secret-key-2024')
 

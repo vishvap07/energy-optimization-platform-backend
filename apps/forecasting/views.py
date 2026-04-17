@@ -138,18 +138,24 @@ def _lstm_forecast(days_ahead=14):
         for i in range(days_ahead):
             daily_total = 0.0
             # Predict 24 hours to get a daily total
-            for _ in range(24):
+            for h_idx in range(24):
                 predicted_h_kwh = None
                 
-                if hf_client:
+                # Hybrid Logic: Only call HF for the first 24 hours of prediction
+                # (to avoid hundreds of sequential network calls)
+                is_first_day = (i == 0)
+                if hf_client and is_first_day:
                     predicted_h_kwh = hf_client.predict_next_hour(curr_c, curr_d, curr_t)
                 
-                # Fallback to local if HF fails or is absent
+                # Fallback to local if HF fails, is absent, or after the first 24h
                 if predicted_h_kwh is None and local_svc:
                     # Local service expects numpy array (24, 3)
                     input_seq = np.stack([curr_c, curr_d, curr_t], axis=1)
                     predicted_h_kwh = local_svc.predict_next(input_seq)
-                    source = 'local_lstm_fallback' if hf_client else 'local_lstm'
+                    if hf_client and is_first_day:
+                        source = 'hugging_face_hybrid'
+                    else:
+                        source = 'hugging_face_hybrid_local_tail' if hf_client else 'local_lstm'
 
                 if predicted_h_kwh is None:
                     # Total failure, use mean or something

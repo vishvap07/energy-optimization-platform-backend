@@ -5,17 +5,17 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 class HuggingFaceClient:
-    def __init__(self, space_url=None):
-        self.space_url = space_url or settings.HF_SPACE_URL
+    def __init__(self, space_id=None):
+        self.space_id = space_id or settings.HF_SPACE_ID
         self._client = None
 
     @property
     def client(self):
         if self._client is None:
             try:
-                # Gradio client handles the /api/predict/ resolution automatically
-                self._client = Client(self.space_url)
-                logger.info(f"Hugging Face Client initialized for {self.space_url}")
+                # Use from_shared_uid is not needed, just Client(id) works for HF Spaces
+                self._client = Client(self.space_id)
+                logger.info(f"Hugging Face Client initialized for Space ID: {self.space_id}")
             except Exception as e:
                 logger.error(f"Failed to initialize Hugging Face client: {e}")
                 raise
