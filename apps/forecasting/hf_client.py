@@ -9,8 +9,8 @@ class HuggingFaceClient:
     def __init__(self, space_id=None):
         # We manually build the prediction URL instead of relying on the library to fetch it
         self.space_id = space_id or getattr(settings, 'HF_SPACE_ID', 'Vishva1574/EnergyForecasting')
-        # Subdomain based URL for HF Spaces
-        self.api_url = f"https://{self.space_id.replace('/', '-').lower()}.hf.space/run/predict"
+        # Subdomain based URL for HF Spaces - /gradio_api is required for this space version
+        self.api_url = f"https://{self.space_id.replace('/', '-').lower()}.hf.space/gradio_api/run/predict"
 
     def predict_next_hour(self, consumption_list, demand_list, temp_list):
         """
