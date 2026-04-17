@@ -24,7 +24,7 @@ def get_hf_client():
     if _hf_client is not None:
         return _hf_client
     try:
-        if settings.HF_SPACE_URL:
+        if settings.HF_SPACE_ID:
             _hf_client = HuggingFaceClient()
             return _hf_client
     except Exception as exc:
