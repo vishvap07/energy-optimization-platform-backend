@@ -22,4 +22,8 @@ if not User.objects.filter(email=email).exists():
 else:
     print(f'Superuser {email} already exists.')
 "
+# Seed data for forecasting model
+echo "Seeding energy data..."
+python manage.py seed_data
+
 echo "Build script completed."
