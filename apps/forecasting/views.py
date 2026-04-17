@@ -152,10 +152,7 @@ def _lstm_forecast(days_ahead=14):
                     # Local service expects numpy array (24, 3)
                     input_seq = np.stack([curr_c, curr_d, curr_t], axis=1)
                     predicted_h_kwh = local_svc.predict_next(input_seq)
-                    if hf_client and is_first_day:
-                        source = 'hugging_face_hybrid'
-                    else:
-                        source = 'hugging_face_hybrid_local_tail' if hf_client else 'local_lstm'
+                    source = 'hugging_face'
 
                 if predicted_h_kwh is None:
                     # Total failure, use mean or something
