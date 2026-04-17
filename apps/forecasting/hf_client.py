@@ -33,7 +33,7 @@ class HuggingFaceClient:
             d_str = ", ".join(map(str, demand_list))
             t_str = ", ".join(map(str, temp_list))
 
-            logger.info(f"Calling HF Space at {self.space_url} endpoint /process_and_predict")
+            logger.info(f"Calling HF Space at {self.space_id} endpoint /process_and_predict")
             
             result = self.client.predict(
                 c_str=c_str,
