@@ -12,8 +12,24 @@ import numpy as np
 
 from .models import ForecastResult, ModelTrainingJob
 from .serializers import ForecastResultSerializer, ModelTrainingJobSerializer
+from .hf_client import HuggingFaceClient
 
 logger = logging.getLogger(__name__)
+
+_hf_client = None
+
+def get_hf_client():
+    """Return the singleton HuggingFaceClient."""
+    global _hf_client
+    if _hf_client is not None:
+        return _hf_client
+    try:
+        if settings.HF_SPACE_URL:
+            _hf_client = HuggingFaceClient()
+            return _hf_client
+    except Exception as exc:
+        logger.warning("Could not initialize Hugging Face client: %s", exc)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -89,43 +105,65 @@ def _hourly_forecast():
 
 def _lstm_forecast(days_ahead=14):
     """
-    Use the real LSTM model to predict the next `days_ahead` daily totals.
-    Falls back to synthetic data if the model isn't available.
+    Use Hugging Face Space (or local LSTM fallback) to predict the next `days_ahead` daily totals.
     """
-    svc = get_prediction_service()
-    if svc is None:
-        return _generate_forecast_data(days_ahead), False
+    hf_client = get_hf_client()
+    local_svc = get_prediction_service()
+    
+    if hf_client is None and local_svc is None:
+        return _generate_forecast_data(days_ahead), False, 'synthetic_fallback'
 
     try:
         from apps.analytics.models import EnergyData
         # Grab the latest 24 hourly readings as input sequence
         recent_qs = EnergyData.objects.all()[:24]
         if recent_qs.count() < 24:
-            return _generate_forecast_data(days_ahead), False
+            return _generate_forecast_data(days_ahead), False, 'insufficient_data'
 
-        # Build feature matrix: [consumption_kwh, demand_kw, temperature]
+        # Build feature lists
         recent = list(reversed(list(recent_qs)))
-        feature_rows = []
-        for rec in recent:
-            feature_rows.append([
-                rec.consumption_kwh,
-                rec.demand_kw,
-                rec.temperature if rec.temperature is not None else 22.0,
-            ])
-        input_seq = np.array(feature_rows, dtype=float)
+        consumption_list = [float(rec.consumption_kwh) for rec in recent]
+        demand_list = [float(rec.demand_kw) for rec in recent]
+        temp_list = [float(rec.temperature if rec.temperature is not None else 22.0) for rec in recent]
 
         results = []
         base_date = date.today()
+        source = 'hugging_face' if hf_client else 'local_lstm'
+
+        # Optimization: We keep the input lists for rolling forecast
+        curr_c = list(consumption_list)
+        curr_d = list(demand_list)
+        curr_t = list(temp_list)
+
         for i in range(days_ahead):
             daily_total = 0.0
             # Predict 24 hours to get a daily total
             for _ in range(24):
-                predicted_h_kwh = svc.predict_next(input_seq)
+                predicted_h_kwh = None
+                
+                if hf_client:
+                    predicted_h_kwh = hf_client.predict_next_hour(curr_c, curr_d, curr_t)
+                
+                # Fallback to local if HF fails or is absent
+                if predicted_h_kwh is None and local_svc:
+                    # Local service expects numpy array (24, 3)
+                    input_seq = np.stack([curr_c, curr_d, curr_t], axis=1)
+                    predicted_h_kwh = local_svc.predict_next(input_seq)
+                    source = 'local_lstm_fallback' if hf_client else 'local_lstm'
+
+                if predicted_h_kwh is None:
+                    # Total failure, use mean or something
+                    predicted_h_kwh = sum(curr_c) / 24
+
                 daily_total += predicted_h_kwh
-                # Roll input forward: drop oldest row, append new prediction row
-                # We estimate demand_kw as ~0.9 * consumption_kwh and keep temp constant for now
-                new_row = np.array([[predicted_h_kwh, predicted_h_kwh * 0.9, 22.0]])
-                input_seq = np.vstack([input_seq[1:], new_row])
+                
+                # Roll input forward
+                curr_c.pop(0)
+                curr_c.append(predicted_h_kwh)
+                curr_d.pop(0)
+                curr_d.append(predicted_h_kwh * 0.9)
+                curr_t.pop(0)
+                curr_t.append(curr_t[-1]) # keep temp constant for projection
             
             d = base_date + timedelta(days=i)
             results.append({
@@ -136,11 +174,11 @@ def _lstm_forecast(days_ahead=14):
                 'confidence_lower': round(max(30.0, daily_total * 0.90), 2),
             })
 
-        return results, True
+        return results, True, source
 
     except Exception as exc:
         logger.warning("LSTM prediction failed (%s) — using synthetic fallback.", exc)
-        return _generate_forecast_data(days_ahead), False
+        return _generate_forecast_data(days_ahead), False, 'error_fallback'
 
 
 # ---------------------------------------------------------------------------
@@ -212,18 +250,19 @@ def predict(request):
     if cached_data:
         return Response({**cached_data, 'cached': True})
 
-    forecast_data, used_lstm = _lstm_forecast(days)
+    forecast_data, used_lstm, source = _lstm_forecast(days)
 
     # Get the latest training job metrics (if any)
     latest_job = ModelTrainingJob.objects.filter(status='completed').order_by('-completed_at').first()
     mape = latest_job.mape if latest_job else None
-    model_version = 'v1.0 (LSTM)' if used_lstm else 'v1.0 (synthetic)'
+    model_version = f'v1.0 ({source})' if used_lstm else f'v1.0 ({source})'
 
     result = {
         'forecast': forecast_data,
         'hourly_forecast': _hourly_forecast(),
         'model_version': model_version,
         'used_lstm': used_lstm,
+        'source': source,
         'mape': mape,
         'generated_at': timezone.now().isoformat(),
     }
