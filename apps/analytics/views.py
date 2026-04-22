@@ -94,6 +94,45 @@ def _get_hourly_peak_from_db():
     return result
 
 
+def _ensure_live_data():
+    """
+    Ensure the DB has records up to the current hour.
+    If the latest record is old, backfill missing hours with realistic simulated data.
+    """
+    try:
+        now = timezone.now().replace(minute=0, second=0, microsecond=0)
+        latest = EnergyData.objects.order_by('-timestamp').first()
+        
+        if not latest:
+            return
+            
+        last_time = latest.timestamp.replace(minute=0, second=0, microsecond=0)
+        
+        # Max backfill to avoid long loops if DB is ancient
+        limit = 48 
+        count = 0
+        
+        while last_time < now and count < limit:
+            last_time += timedelta(hours=1)
+            hour = last_time.hour
+            # Seasonal pattern matching seed_data
+            base_val = 45 + 20 * math.sin(math.pi * hour / 12) + random.gauss(0, 5)
+            EnergyData.objects.create(
+                timestamp=last_time,
+                consumption_kwh=round(max(10, base_val), 2),
+                demand_kw=round(max(5, base_val * 0.9), 2),
+                temperature=round(22 + 8 * math.sin(math.pi * (hour - 6) / 12) + random.gauss(0, 1), 1),
+                source='simulated_live'
+            )
+            count += 1
+            
+        if count > 0:
+            logger.info(f"Backfilled {count} live energy records.")
+            
+    except Exception as e:
+        logger.error(f"Failed to generate live data: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------------
@@ -102,6 +141,9 @@ def _get_hourly_peak_from_db():
 @permission_classes([IsAuthenticated])
 def energy_data(request):
     if request.method == 'GET':
+        # Ensure data is up to date before fetching
+        _ensure_live_data()
+        
         days = int(request.query_params.get('days', 30))
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 100))
