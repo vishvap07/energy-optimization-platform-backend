@@ -38,11 +38,17 @@ class HuggingFaceClient:
                 logger.error(f"HF Space Error ({response.status_code}): {response.text}")
                 return None
 
-            # Response structure: {"data": ["Result String"], "is_generating": false, ...}
+            # Response structure: {"data": ["Result String" or {"label": "..."}], "is_generating": false, ...}
             resp_data = response.json()
-            prediction_text = resp_data["data"][0] if "data" in resp_data and len(resp_data["data"]) > 0 else ""
+            prediction_output = resp_data["data"][0] if "data" in resp_data and len(resp_data["data"]) > 0 else ""
 
-            logger.info(f"HF Response: {prediction_text}")
+            # Handle if the output is a dict (Gradio Label component sometimes does this)
+            if isinstance(prediction_output, dict):
+                prediction_text = prediction_output.get('label', '')
+            else:
+                prediction_text = str(prediction_output)
+
+            logger.info(f"HF Response Text: {prediction_text}")
 
             # Extract number from "Predicted Consumption for Next Hour: 58.21 kWh"
             try:
