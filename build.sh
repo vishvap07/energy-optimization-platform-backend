@@ -8,20 +8,13 @@ pip install -r requirements.txt
 # Run database migrations
 python manage.py migrate
 
-# Create a default superuser if it doesn't exist
-# We use a custom python script inline to safely create the user
-echo "Checking superuser status..."
-python manage.py shell -c "
-from django.contrib.auth import get_user_model;
-User = get_user_model();
-email = 'admin@example.com'
-if not User.objects.filter(email=email).exists():
-    print(f'Creating superuser: {email}')
-    User.objects.create_superuser(email=email, password='adminpassword123', first_name='System', last_name='Admin')
-    print('Superuser created successfully.')
-else:
-    print(f'Superuser {email} already exists.')
-"
+# Create default users for testing
+echo "Setting up demo accounts..."
+python manage.py shell -c "from apps.authentication.models import User; \
+User.objects.filter(email='admin@example.com').exists() or User.objects.create_superuser('admin@example.com', 'adminpassword123', first_name='System', last_name='Admin'); \
+User.objects.filter(email='user@example.com').exists() or User.objects.create_user('user@example.com', 'userpassword123', role='user', first_name='Normal', last_name='User'); \
+User.objects.filter(email='tech@example.com').exists() or User.objects.create_user('tech@example.com', 'techpassword123', role='technician', first_name='Field', last_name='Technician')"
+
 # Seed data for forecasting model
 echo "Seeding energy data..."
 python manage.py seed_data
