@@ -109,7 +109,7 @@ def _ensure_live_data():
         last_time = latest.timestamp.replace(minute=0, second=0, microsecond=0)
         
         # Max backfill to avoid long loops if DB is ancient
-        limit = 48 
+        limit = 500 
         count = 0
         
         while last_time < now and count < limit:
@@ -231,6 +231,9 @@ def upload_csv(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def analytics_summary(request):
+    # Ensure data is up to date
+    _ensure_live_data()
+    
     is_admin = getattr(request.user, 'role', 'user') == 'admin' or request.user.is_staff or request.user.is_superuser
     
     # Filter to last 30 days for dashboard consistency (Rolling Billing Cycle)
