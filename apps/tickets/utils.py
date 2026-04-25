@@ -1,51 +1,53 @@
 import re
+from fuzzywuzzy import fuzz
 
 def auto_assign_priority(title, description, category):
     """
     Automatically assigns a priority level based on keywords and category.
+    Uses fuzzy matching to handle typos (e.g., 'faliure' -> 'failure').
     """
     text = (title + " " + description).lower()
+    words = text.split()
     
-    # Critical Keywords (Safety, Fire, Immediate Danger)
-    critical_keywords = [
-        r'\bfire\b', r'\bsmoke\b', r'\bexplosion\b', r'\bdangerous\b', 
-        r'\bemergency\b', r'\bshock\b', r'\bleak\b', r'\bhazard\b',
-        r'\boutage\b', r'\bblackout\b'
-    ]
+    # Critical Keywords
+    critical_keywords = ['fire', 'smoke', 'explosion', 'dangerous', 'emergency', 'shock', 'leak', 'hazard', 'outage', 'blackout']
     
-    # High Keywords (System failures, broken hardware, urgent issues)
-    high_keywords = [
-        r'\bbroken\b', r'\bfailure\b', r'\bcrashed\b', r'\bstuck\b', 
-        r'\burgent\b', r'\bimmediate\b', r'\bcannot login\b', r'\berror\b',
-        r'\bnot working\b', r'\bstop\b', r'\bdown\b'
-    ]
+    # High Keywords
+    high_keywords = ['broken', 'failure', 'crashed', 'stuck', 'urgent', 'immediate', 'error', 'stop', 'down']
     
-    # Medium Keywords (Performance issues, minor bugs, help requests)
-    medium_keywords = [
-        r'\bslow\b', r'\bproblem\b', r'\bissue\b', r'\bincorrect\b', 
-        r'\bupdate\b', r'\bchange\b', r'\brequest\b', r'\bhelp\b'
-    ]
+    # Medium Keywords
+    medium_keywords = ['slow', 'problem', 'issue', 'incorrect', 'update', 'change', 'request', 'help']
 
-    # 1. Check Category first (Category takes precedence for certain types)
+    # 1. Check Category first
     if category.lower() in ['safety', 'fire safety', 'emergency']:
         return 'critical'
     if category.lower() in ['system failure', 'hardware failure']:
         return 'high'
     
+    # Helper to check fuzzy match in text
+    def has_match(word_list, target_text, threshold=85):
+        # Check exact matches first
+        for kw in word_list:
+            if kw in target_text:
+                return True
+        # Check fuzzy matches for each word in input
+        for word in words:
+            for kw in word_list:
+                if fuzz.ratio(word, kw) >= threshold:
+                    return True
+        return False
+
     # 2. Check for Critical keywords
-    for pattern in critical_keywords:
-        if re.search(pattern, text):
-            return 'critical'
+    if has_match(critical_keywords, text):
+        return 'critical'
             
     # 3. Check for High keywords
-    for pattern in high_keywords:
-        if re.search(pattern, text):
-            return 'high'
+    if has_match(high_keywords, text):
+        return 'high'
             
     # 4. Check for Medium keywords
-    for pattern in medium_keywords:
-        if re.search(pattern, text):
-            return 'medium'
+    if has_match(medium_keywords, text):
+        return 'medium'
             
     # Default
     return 'low'
