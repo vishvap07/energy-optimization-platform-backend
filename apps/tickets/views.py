@@ -9,13 +9,23 @@ from .serializers import TicketSerializer, CreateTicketSerializer, TicketRespons
 from apps.monitoring.utils import log_action
 
 
+from .utils import auto_assign_priority
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_ticket(request):
     serializer = CreateTicketSerializer(data=request.data)
     if serializer.is_valid():
-        ticket = serializer.save(user=request.user)
-        log_action('ticket_created', request.user.email, f'Ticket #{ticket.pk} created: {ticket.title}', request)
+        # Auto-calculate priority based on content
+        title = serializer.validated_data.get('title', '')
+        description = serializer.validated_data.get('description', '')
+        category = serializer.validated_data.get('category', 'General')
+        
+        auto_priority = auto_assign_priority(title, description, category)
+        
+        ticket = serializer.save(user=request.user, priority=auto_priority)
+        log_action('ticket_created', request.user.email, f'Ticket #{ticket.pk} created (Auto-Priority: {auto_priority})', request)
         return Response(TicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
