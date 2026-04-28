@@ -2,13 +2,15 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from django_ratelimit.decorators import ratelimit
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from apps.monitoring.utils import log_action
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@ratelimit(key='ip', rate='5/h', method='POST', block=True)
 def register(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
@@ -25,6 +27,7 @@ def register(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def login(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
@@ -82,3 +85,22 @@ def list_users(request):
     from .models import User
     users = User.objects.all()
     return Response(UserSerializer(users, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    try:
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response({"error": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+        
+        log_action('logout', request.user.email, 'User logged out and token blacklisted', request)
+        return Response({"message": "Successfully logged out"}, status=status.HTTP_205_RESET_CONTENT)
+    except TokenError:
+        return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

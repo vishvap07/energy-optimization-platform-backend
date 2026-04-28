@@ -86,9 +86,12 @@ def update_ticket_status(request, ticket_id):
 @permission_classes([IsAuthenticated])
 def respond_to_ticket(request, ticket_id):
     try:
-        ticket = Ticket.objects.get(pk=ticket_id)
+        if request.user.role in ['admin', 'technician']:
+            ticket = Ticket.objects.get(pk=ticket_id)
+        else:
+            ticket = Ticket.objects.get(pk=ticket_id, user=request.user)
     except Ticket.DoesNotExist:
-        return Response({'error': 'Ticket not found'}, status=404)
+        return Response({'error': 'Ticket not found or access denied'}, status=404)
 
     message = request.data.get('message', '').strip()
     if not message:

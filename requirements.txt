@@ -16,3 +16,5 @@ psutil>=5.9.0
 dj-database-url==2.1.0
 gunicorn==21.2.0
 requests==2.31.0
+django-axes==6.3.0
+django-ratelimit==4.1.0
