@@ -225,8 +225,11 @@ def upload_csv(request):
         # Wrap in IO for Pandas
         df = pd.read_csv(io.StringIO(file_content))
 
-        # Apply sanitization to all cell values
-        df = df.applymap(sanitize_value)
+        # Apply sanitization to all cell values (map replaces applymap in pandas 2.1.0+)
+        if hasattr(df, 'map'):
+            df = df.map(sanitize_value)
+        else:
+            df = df.applymap(sanitize_value)
 
         required = ['timestamp', 'consumption_kwh', 'demand_kw']
         if not all(col in df.columns for col in required):
