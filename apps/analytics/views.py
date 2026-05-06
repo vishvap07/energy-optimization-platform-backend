@@ -231,9 +231,12 @@ def upload_csv(request):
         else:
             df = df.applymap(sanitize_value)
 
+        # Clean up column headers (remove whitespace/quotes)
+        df.columns = [c.strip().replace('"', '').replace("'", "") for c in df.columns]
+
         required = ['timestamp', 'consumption_kwh', 'demand_kw']
         if not all(col in df.columns for col in required):
-            return Response({'error': f'Missing columns. Required: {required}'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Missing columns in CSV. Required: {required}. Found: {list(df.columns)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Analysis logic (Simulation Mode)
         df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
