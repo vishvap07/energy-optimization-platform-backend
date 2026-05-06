@@ -135,30 +135,29 @@ def _lstm_forecast(days_ahead=14):
         curr_d = list(demand_list)
         curr_t = list(temp_list)
 
+        hf_called_once = False
+
         for i in range(days_ahead):
             daily_total = 0.0
             # Predict 24 hours to get a daily total
             for h_idx in range(24):
                 predicted_h_kwh = None
                 
-                # Hybrid Logic: Only call HF for the first 24 hours of prediction
-                # (to avoid hundreds of sequential network calls)
-                is_first_day = (i == 0)
-                if hf_client and is_first_day:
+                # Hybrid Logic: Only call HF for the VERY FIRST hour of prediction
+                # (to avoid hundreds of sequential network calls which hang the server)
+                if hf_client and not hf_called_once:
                     predicted_h_kwh = hf_client.predict_next_hour(curr_c, curr_d, curr_t)
+                    hf_called_once = True
                 
-                # Fallback to local if HF fails, is absent, or after the first 24h
+                # Fallback to local if HF fails, is absent, or after the first call
                 if predicted_h_kwh is None and local_svc:
                     # Local service expects numpy array (24, 3)
                     input_seq = np.stack([curr_c, curr_d, curr_t], axis=1)
                     predicted_h_kwh = local_svc.predict_next(input_seq)
-                    source = 'hugging_face'
+                    source = 'local_lstm' if not hf_called_once else 'hugging_face_hybrid'
 
                 if predicted_h_kwh is None:
                     # Seasonal fallback (sine wave for hour of day) + tiny random noise
-                    # This ensures the forecast looks realistic even without a local model
-                    import math
-                    import random
                     hour = h_idx
                     seasonal_factor = 1.0 + 0.25 * math.sin(math.pi * (hour - 6) / 12)
                     avg = sum(curr_c) / 24

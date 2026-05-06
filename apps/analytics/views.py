@@ -177,25 +177,69 @@ def energy_data(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def upload_csv(request):
-    """Handle CSV file uploads for bulk data ingestion."""
+    """
+    Handle CSV file uploads with security hardening:
+    - Size limit (5MB)
+    - MIME-type validation
+    - Content sanitization (CSV Injection & XSS)
+    """
+    MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
+    ALLOWED_CONTENT_TYPES = ['text/csv', 'application/vnd.ms-excel', 'text/plain']
+
     if 'file' not in request.FILES:
         return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
 
     csv_file = request.FILES['file']
+
+    # 1. Size Validation
+    if csv_file.size > MAX_UPLOAD_SIZE:
+        return Response({'error': 'File too large. Max size is 5MB.'}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
+    # 2. Extension & MIME Validation
     if not csv_file.name.endswith('.csv'):
-        return Response({'error': 'File must be a CSV'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid file extension. Only .csv allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if csv_file.content_type not in ALLOWED_CONTENT_TYPES:
+         return Response({'error': 'Invalid file type.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         import pandas as pd
         import numpy as np
-        df = pd.read_csv(csv_file)
+        import io
+        import re
+
+        # Read the file into a string for sanitization
+        file_content = csv_file.read().decode('utf-8', errors='ignore')
+        
+        # 3. Content Sanitization (CSV Injection Protection)
+        # Prevent formulas starting with =, +, -, @
+        def sanitize_value(val):
+            if isinstance(val, str):
+                # Remove dangerous prefixes used in Excel Formula Injection
+                if val.startswith(('=', '+', '-', '@')):
+                    return "'" + val  # Prepend a single quote to neutralize
+                # Basic XSS protection
+                return re.sub(r'[<>]', '', val)
+            return val
+
+        # Wrap in IO for Pandas
+        df = pd.read_csv(io.StringIO(file_content))
+
+        # Apply sanitization to all cell values
+        df = df.applymap(sanitize_value)
 
         required = ['timestamp', 'consumption_kwh', 'demand_kw']
         if not all(col in df.columns for col in required):
             return Response({'error': f'Missing columns. Required: {required}'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Analysis logic (Simulation Mode)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        df = df.dropna(subset=['timestamp']) # Remove invalid dates
+
+        # Ensure numeric types
+        df['consumption_kwh'] = pd.to_numeric(df['consumption_kwh'], errors='coerce').fillna(0)
+        df['demand_kw'] = pd.to_numeric(df['demand_kw'], errors='coerce').fillna(0)
+
         total_rows = len(df)
         avg_consumption = df['consumption_kwh'].mean()
         max_demand = df['demand_kw'].max()
@@ -210,7 +254,8 @@ def upload_csv(request):
         chart_data = df.head(100)[['timestamp', 'consumption_kwh', 'demand_kw']].to_dict(orient='records')
 
         return Response({
-            'message': 'Simulation analysis complete. Data was analyzed but NOT saved to production database.',
+            'message': 'Simulation analysis complete. Data sanitized and analyzed (NOT saved to DB).',
+            'security_note': 'CSV content was sanitized to prevent injection attacks.',
             'simulation': True,
             'summary': {
                 'total_rows': total_rows,
@@ -225,7 +270,7 @@ def upload_csv(request):
         })
 
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': f'Processing error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

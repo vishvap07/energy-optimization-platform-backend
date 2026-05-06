@@ -32,7 +32,7 @@ class HuggingFaceClient:
             }
 
             logger.info(f"Direct API Call: {self.api_url}")
-            response = requests.post(self.api_url, json=payload, timeout=10)
+            response = requests.post(self.api_url, json=payload, timeout=5)
             
             if response.status_code != 200:
                 logger.error(f"HF Space Error ({response.status_code}): {response.text}")
